@@ -9,7 +9,7 @@ The published site is available at:
 
 <https://brookehiggins.github.io/education-internet-trends/>
 
-## Render locally
+## Update and render locally
 
 Install [Quarto](https://quarto.org/) and the R packages used by the report:
 
@@ -24,6 +24,9 @@ quarto render
 ```
 
 The rendered website is written to `_site/`.
+
+To publish changes, render the project and commit the updated `_site/` output.
+GitHub Pages deploys the committed rendered site.
 
 ## Data sources
 

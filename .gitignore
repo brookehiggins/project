@@ -1,6 +1,5 @@
 .DS_Store
 .quarto/
-_site/
 *_files/
 Rplots.pdf
 project.html

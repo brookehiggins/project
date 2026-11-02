@@ -1,8 +1,0 @@
-.DS_Store
-.quarto/
-*_files/
-Rplots.pdf
-project.html
-
-/.quarto/
-**/*.quarto_ipynb

@@ -1,0 +1,142 @@
+---
+title: "Project Data"
+format:
+  html:
+    embed-resources: true
+---
+
+------------------------------------------------------------------------
+
+```{r}
+library(tidyverse)
+library(readr)
+library(sf)
+library(plotly)
+
+internet <- read_csv('/Users/brookehiggins/Downloads/project/internet_users.csv')
+edu_index <- read_csv('/Users/brookehiggins/Downloads/project/owid_education_idx.csv')
+
+map <- st_read("https://r2.datahub.io/clvyjaryy0000la0cxieg4o8o/main/raw/data/countries.geojson", quiet = TRUE)
+
+
+glimpse(edu_index)
+glimpse(internet)
+```
+
+- map- https://datahub.io/core/geo-countries
+- edu- https://www.gapminder.org/data/
+- internet- https://www.gapminder.org/data/
+
+```{r}
+
+head(edu_index)
+head(internet)
+
+edu_clean <- edu_index |> 
+    select(-all_of(as.character(1870:1989)))
+
+head(edu_clean)
+
+```
+
+```{r}
+
+shared_years <- intersect(
+  names(edu_clean)[grepl("^[0-9]{4}$", names(edu_clean))],
+  names(internet)[grepl("^[0-9]{4}$", names(internet))]
+)
+
+edu_long <- edu_clean |>
+  select(iso3 = geo, all_of(shared_years)) |>
+  pivot_longer(
+    cols = all_of(shared_years),
+    names_to = "year",
+    values_to = "education_index"
+  ) |>
+  mutate(iso3 = toupper(iso3), year = as.integer(year)) |>
+  select(iso3, year, education_index)
+
+internet_long <- internet |>
+  select(iso3 = geo, all_of(shared_years)) |>
+  pivot_longer(
+    cols = all_of(shared_years),
+    names_to = "year",
+    values_to = "internet_users"
+  ) |>
+  mutate(iso3 = toupper(iso3), year = as.integer(year)) |>
+  select(iso3, year, internet_users)
+
+joined_data <- map |>
+  mutate(
+    iso3 = ISO3166.1.Alpha.3,
+    join_key = 1L
+  ) |>
+  inner_join(
+    tibble(year = as.integer(shared_years), join_key = 1L),
+    by = "join_key",
+    relationship = "many-to-many"
+  ) |>
+  select(-join_key) |>
+  left_join(edu_long, by = c("iso3", "year")) |>
+  left_join(internet_long, by = c("iso3", "year"))
+
+glimpse(joined_data)
+
+```
+
+```{r}
+
+edu_map <- joined_data |>
+  filter(year == 1990) |>
+  ggplot(aes(fill = education_index)) +
+  geom_sf() +
+  scale_fill_viridis_c(name = "Education Index (1990)", na.value = "grey90")
+
+ggplotly(edu_map)
+
+```
+
+```{r}
+
+internet_map <- joined_data |>
+  filter(year == 1990) |>
+  ggplot(aes(fill = internet_users)) +
+  geom_sf() +
+  scale_fill_viridis_c(
+    name = "Internet users (% of population, 1990)",
+    na.value = "grey90"
+  )
+
+ggplotly(internet_map)
+
+```
+
+```{r}
+
+scatter_data <- joined_data |>
+  filter(!is.na(education_index), !is.na(internet_users)) |>
+  st_drop_geometry()
+
+plot_ly(
+  scatter_data,
+  x = ~education_index,
+  y = ~internet_users,
+  text = ~name,
+  frame = ~year,
+  ids = ~iso3,
+  type = "scatter",
+  mode = "markers",
+  marker = list(size = 9, opacity = 0.75, color = "steelblue"),
+  hovertemplate = paste(
+    "Country: %{text}<br>",
+    "Education Index: %{x:.3f}<br>",
+    "Internet users: %{y:.1f}%<extra></extra>"
+  )
+) |>
+  layout(
+    xaxis = list(title = "Education Index"),
+    yaxis = list(title = "Internet users (% of population)")
+  ) |>
+  animation_slider(currentvalue = list(prefix = "Year: "))
+
+```
